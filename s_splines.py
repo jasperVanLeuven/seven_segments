@@ -6,10 +6,11 @@ class ProfileParams:
     """
     Specigies the parameters to which the velocity profile must adhere
     """
-    def __init__(self, dist : float, v_init : float, v_final : float, a_max : float, j_max : float, delta_t : float):
+    def __init__(self, dist : float, v_init : float, v_final : float,v_max : float, a_max : float, j_max : float, delta_t : float):
         self.dist : float = dist
         self.v_init : float = v_init
         self.v_final : float = v_final
+        self.v_max : float = v_max
         self.a_max : float = a_max
         self.j_max : float = j_max
         self.delta_t : float = delta_t
@@ -54,40 +55,19 @@ class Profile:
     """
     def __init__(self, profile_params : ProfileParams):
         time : Time = Time.from_profile_params(profile_params) 
-        self.k_1 : np.ndarray =  self.profile_time_segement_0(time, profile_params)
-        self.k_2 : np.ndarray = self.profile_time_segement_1(time, profile_params)
+        self.k_1_vel : np.ndarray =  self.profile_time_segement_1(time, profile_params)
+        self.k_1_jerk : np.ndarray =  self.profile_time_segement_1_jerk(time, profile_params)
 
-    ########### Segment 0
-    def profile_time_segement_0(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
-        """
-        Calculates the velocities within segment one
-        """
-        profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_0_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
-        return profile
-    
-    def _segment_0_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
-        """
-        Calculates the jerk of the zeroth segment
-        """
-        passed_time = 0.0
-        return profile_params.j_max * np.sin((np.pi*(current_time - passed_time))/(2.0 * time.t_1 ))
-    
-    def _segment_0_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
-        """
-        Calculates the acceleration of the zeroth segment
-        """
-        constant_a : float = 0.63662 * time.t_1
-        return -0.63662 * time.t_1 * profile_params.j_max * np.cos((1.5708 * current_time) / time.t_1) + constant_a
-    
-    def _segment_0_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
-        return time.t_1 * (0.63662 * current_time - 0.405284 * time.t_1 * profile_params.j_max *  np.sin((1.5708 * current_time) / time.t_1)) + profile_params.v_init
+        self.k_2_vel : np.ndarray = self.profile_time_segement_2(time, profile_params)
+        self.k_2_jerk : np.ndarray = self.profile_time_segement_2_jerk(time, profile_params)
 
 
-    ########### Segment 1
+        self.k_3_vel : np.ndarray = self.profile_time_segement_3(time, profile_params)
+        self.k_3_jerk : np.ndarray = self.profile_time_segement_3_jerk(time, profile_params)
+
+
+
+    ############################################################################################# Segment 1
     def profile_time_segement_1(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         """
         Calculates the velocities within segment one
@@ -99,53 +79,117 @@ class Profile:
             profile = np.append(profile, vel)
         return profile
     
-    def _segment_1_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
-        """
-        Calculates the jerk of the zeroth segment
-        """
-        return profile_params.j_max 
-    
-    def _segment_1_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
-        """
-        Calculates the acceleration of the zeroth segment
-        """
-        constant_a : float = self._segment_0_acc(time, profile_params, time.t_1)
-        return profile_params.j_max * current_time + constant_a
-    
-    def _segment_1_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
-        constant_a : float = self._segment_0_acc(time, profile_params, time.t_1)
-        constant_v : float = self._segment_0_vel(time,profile_params, time.t_1) 
-        return  0.5* profile_params.j_max * current_time**2 + constant_a*current_time + constant_v
-
-    ########### Segment 1
-    def profile_time_segement_1(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
+    def profile_time_segement_1_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         """
         Calculates the velocities within segment one
         """
         profile : np.ndarray = np.array([])
         for t in range(int(time.t_1/profile_params.delta_t)):
             current_time : float = t * profile_params.delta_t
-            vel = self._segment_1_vel(time, profile_params, current_time)
+            vel = self._segment_1_jerk(time, profile_params, current_time)
             profile = np.append(profile, vel)
         return profile
+    
     
     def _segment_1_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         """
         Calculates the jerk of the zeroth segment
         """
-        return profile_params.j_max 
+        return profile_params.j_max * np.sin((np.pi*(current_time))/(2.0 * time.t_1 ))
     
     def _segment_1_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         """
         Calculates the acceleration of the zeroth segment
         """
-        constant_a : float = self._segment_0_acc(time, profile_params, time.t_1)
-        return profile_params.j_max * current_time + constant_a
+        return  -2.0 * profile_params.j_max * time.t_1 * np.cos((np.pi * current_time) / (2.0 * time.t_1)) / np.pi
     
     def _segment_1_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
-        constant_a : float = self._segment_0_acc(time, profile_params, time.t_1)
-        constant_v : float = self._segment_0_vel(time,profile_params, time.t_1) 
+        return  -4.0 * profile_params.j_max * time.t_1**2 * np.sin((np.pi * current_time) / (2.0 * time.t_1)) / (np.pi**2) + profile_params.v_init
+
+
+    ############################################################################################# Segment 2
+    def profile_time_segement_2(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
+        """
+        Calculates the velocities within segment one
+        """
+        profile : np.ndarray = np.array([])
+        for t in range(int(time.t_1/profile_params.delta_t)):
+            current_time : float = t * profile_params.delta_t
+            vel = self._segment_2_vel(time, profile_params, current_time)
+            profile = np.append(profile, vel)
+        return profile
+    
+    def profile_time_segement_2_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
+        """
+        Calculates the velocities within segment one
+        """
+        profile : np.ndarray = np.array([])
+        for t in range(int(time.t_1/profile_params.delta_t)):
+            current_time : float = t * profile_params.delta_t
+            vel = self._segment_2_jerk(time, profile_params, current_time)
+            profile = np.append(profile, vel)
+        return profile
+    
+    def _segment_2_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
+        """
+        Calculates the jerk of the zeroth segment
+        """
+        return profile_params.j_max 
+    
+    def _segment_2_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
+        """
+        Calculates the acceleration of the zeroth segment
+        """
+        constant_a : float = self._segment_1_acc(time, profile_params, time.t_1)
+        return profile_params.j_max * current_time + constant_a
+    
+    def _segment_2_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
+        constant_a : float = self._segment_1_acc(time, profile_params, time.t_1)
+        constant_v : float = self._segment_1_vel(time,profile_params, time.t_1) 
         return  0.5* profile_params.j_max * current_time**2 + constant_a*current_time + constant_v
+
+    ############################################################################################# Segment 3
+    def profile_time_segement_3(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
+        """
+        Calculates the velocities within segment one
+        """
+        profile : np.ndarray = np.array([])
+        for t in range(int(time.t_1/profile_params.delta_t)):
+            current_time : float = t * profile_params.delta_t
+            vel = self._segment_3_vel(time, profile_params, current_time)
+            profile = np.append(profile, vel)
+        return profile
+    
+    def profile_time_segement_3_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
+        """
+        Calculates the velocities within segment one
+        """
+        profile : np.ndarray = np.array([])
+        for t in range(int(time.t_1/profile_params.delta_t)):
+            current_time : float = t * profile_params.delta_t
+            vel = self._segment_3_jerk(time, profile_params, current_time)
+            profile = np.append(profile, vel)
+        return profile
+    
+    def _segment_3_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
+        """
+        Calculates the jerk of the zeroth segment
+        """
+        return profile_params.j_max * np.sin((np.pi/2 + (np.pi*(current_time ))/(2.0 * time.t_1 )))
+    
+    def _segment_3_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
+        """
+        Calculates the acceleration of the zeroth segment
+        """
+        constant_a : float = self._segment_2_acc(time, profile_params, time.t_1)
+        return -2.0 * profile_params.j_max * time.t_1 * np.cos((np.pi/2 + (np.pi * current_time) / (2.0 * time.t_1))) / np.pi + constant_a
+    
+    def _segment_3_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
+
+        constant_a : float = self._segment_2_acc(time, profile_params, time.t_1)
+        constant_v : float = self._segment_2_vel(time,profile_params, time.t_1) 
+        return   -4 * profile_params.j_max * time.t_1 * time.t_1 * (np.sin(np.pi/2 + np.pi * current_time / (2 * time.t_1)) / np.pi**2) + constant_a*current_time + constant_v
+    
     def get_velocity_at_time(self,current_time : float) -> float:
         """
         Retrieves the velocity at a specified time
@@ -154,10 +198,12 @@ class Profile:
     
 
 def main():
-    profile_params : ProfileParams = ProfileParams(100.0,1.0,1.0,1,0.2,0.01)
+    profile_params : ProfileParams = ProfileParams(100.0,0.0,1.0,5.0,1,0.2,0.01)
     profile : Profile = Profile(profile_params)
 
-    total_prof : np.ndarray = np.concatenate([profile.k_1,profile.k_2])
+    total_prof : np.ndarray = np.concatenate([profile.k_1_vel,profile.k_2_vel,profile.k_3_vel])
+    total_jerk : np.ndarray = np.concatenate([profile.k_1_jerk,profile.k_2_jerk, profile.k_3_jerk])
+
 
     plt.plot(range(len(total_prof)), total_prof)
     plt.show()

@@ -568,9 +568,9 @@ def main():
                                                    j_max=0.1,
                                                    delta_t=0.01)
     # type 2
-    profile_params : ProfileParams = ProfileParams(1000.0,
+    profile_params : ProfileParams = ProfileParams(10.0,
                                                    0.0,
-                                                   3.0,
+                                                   2.0,
                                                    3,
                                                    1,
                                                    4,

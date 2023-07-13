@@ -37,3 +37,23 @@ def test_profile_end_vel_2():
     real_final : float = profile.k_7_vel[-1]
     calc_final : float = profile_params.v_final
     assert abs(real_final - calc_final) < 0.0001, f"The final velocity is not {calc_final} but: {real_final}"
+
+
+# Position END
+def test_profile_end_pos():
+    profile_params : s_splines.ProfileParams = s_splines.ProfileParams(10.0,2.0,4.0,10,1,0.2,0.001)
+    profile : s_splines.Profile = s_splines.Profile(profile_params)
+    real_final : float = profile.final_pos
+    assert abs(real_final - 10) < 0.02, f"The final pos is not 10 but: {real_final}"
+
+def test_profile_end_pos_1():
+    profile_params : s_splines.ProfileParams = s_splines.ProfileParams(20.0,1.0,5.0,10,1,0.2,0.001)
+    profile : s_splines.Profile = s_splines.Profile(profile_params)
+    real_final : float = profile.final_pos
+    assert abs(real_final - 20) < 0.02, f"The final pos is not 20 but: {real_final}"
+
+def test_profile_end_pos_2():
+    profile_params : s_splines.ProfileParams = s_splines.ProfileParams(20.0,0.0,10.0,10,1,0.2,0.001)
+    profile : s_splines.Profile = s_splines.Profile(profile_params)
+    real_final : float = profile.final_pos
+    assert abs(real_final - 20) < 0.02, f"The final pos is not 20 but: {real_final}"

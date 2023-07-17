@@ -78,7 +78,7 @@ class Time:
         v_a_max = 3 * a_max * t_1
         t_cv: float = (profile_params.dist - d_v_max) / profile_params.v_final
 
-        print(f"{t_4}, {t_cv}")
+        print(f"{t_1}, {t_4}, {t_cv}")
 
         if (t_4 > 0 and t_cv > 0) and (v_a_max < v_max - v_init) :
                   return Time(t_1, t_4, t_cv)
@@ -236,26 +236,31 @@ class Profile:
     ############################################################################################# Segment 1
     def profile_time_segement_1(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = 0.0
+        while  0.0 <= current_time <  time.t_1 :
             vel = self._segment_1_vel(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
         return profile
     
     def profile_time_segement_1_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = 0.0
+        while  0.0 <= current_time <  time.t_1 :
             vel = self._segment_1_acc(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile    
     
     def profile_time_segement_1_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = 0.0
+        while  0.0 <= current_time <  time.t_1 :
             vel = self._segment_1_jerk(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
     
     
@@ -266,40 +271,50 @@ class Profile:
     
     def _segment_1_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_0 = (2 * J * T) / np.pi
-        
-        return - (2 * J * T * np.cos( (np.pi * x) / (2 * T) )) / np.pi + a_0
+        overshoot : float = 0.0
+        acc = lambda x : - (2 * J * T * np.cos( (np.pi * x) / (2 * T) )) / np.pi     
+        a_0 = - acc(overshoot)
+        return acc(x) + a_0
     
     def _segment_1_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_0 = (2 * J * T) / np.pi
-        v_0 = profile_params.v_init
-        return  - (4 * J * T **2 * np.sin( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_0*x + v_0
+        overshoot : float = 0.0
+        acc = lambda x : - (2 * J * T * np.cos( (np.pi * x) / (2 * T) )) / np.pi     
+        a_0 = - acc(overshoot)
+        vel = lambda x : - (4 * J * T **2 * np.sin( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_0*x
+        v_0 = profile_params.v_init - vel(overshoot)
+        return  vel(x) + v_0
 
 
     ############################################################################################# Segment 2
     def profile_time_segement_2(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t +1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - (time.t_1 % profile_params.delta_t)
+        while current_time <  time.t_1 :
             vel = self._segment_2_vel(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
     
     def profile_time_segement_2_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - (time.t_1 % profile_params.delta_t)
+        while current_time <  time.t_1 :
             vel = self._segment_2_acc(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile  
     
     def profile_time_segement_2_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - (time.t_1 % profile_params.delta_t)
+        while  current_time <  time.t_1 :
             vel = self._segment_2_jerk(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
     
     def _segment_2_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -308,38 +323,52 @@ class Profile:
     
     def _segment_2_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_1 : float = self._segment_1_acc(time, profile_params , T)
-        return J * x + a_1
+        acc = lambda x : J * x
+        overshoot : float = 0.0
+        a_1 : float = self._segment_1_acc(time, profile_params , T) - acc(overshoot)
+        return acc(x) + a_1
     
     def _segment_2_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_1 : float = self._segment_1_acc(time, profile_params , T)
-        v_1 : float = self._segment_1_vel(time, profile_params , T)
-        return  0.5 * J * x **2.0 + a_1 * x + v_1 
+        acc = lambda x : J * x
+        overshoot : float = 0.0
+        a_1 : float = self._segment_1_acc(time, profile_params , T) - acc(overshoot)
+        vel = lambda x : 0.5 * J * x **2.0 + a_1 * x
+        v_1 : float = self._segment_1_vel(time, profile_params , T) - vel(overshoot)
+        return  vel(x) + v_1 
 
     ############################################################################################# Segment 3
     def profile_time_segement_3(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_3_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (2 * time.t_1) % profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_3_vel(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
 
     def profile_time_segement_3_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_3_acc(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (2 * time.t_1) % profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_3_acc(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
       
     def profile_time_segement_3_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t +1 )):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_3_jerk(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (2 * time.t_1) % profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_3_jerk(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
     
     def _segment_3_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -348,38 +377,52 @@ class Profile:
     
     def _segment_3_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_3 : float = self._segment_2_acc(time, profile_params , T)
-        return  (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi + a_3
+        acc = lambda x :  (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi
+        overshoot : float = 0.0
+        a_3 : float = self._segment_2_acc(time, profile_params , T) + acc(overshoot)
+        return  acc(x) + a_3
     
     def _segment_3_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_3 : float = self._segment_2_acc(time, profile_params, time.t_1)
-        v_3 : float = self._segment_2_vel(time,profile_params, time.t_1) + (4 * J * T **2)/ (np.pi **2)
-        return   - (4 * J * T **2 * np.cos( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_3*x + v_3
+        acc = lambda x :  (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi
+        overshoot : float = 0.0
+        a_3 : float = self._segment_2_acc(time, profile_params , T) - acc(overshoot)
+        vel = lambda x : - (4 * J * T **2 * np.cos( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_3*x
+        v_3 : float = self._segment_2_vel(time,profile_params, time.t_1)  - vel(overshoot)
+        return  vel(x)  + v_3
     ############################################################################################# Segment 4
     def profile_time_segement_4(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_4/profile_params.delta_t +1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_4_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 )% profile_params.delta_t)
+        while  current_time <  time.t_4 :
+            if current_time >= 0.0:
+                vel = self._segment_4_vel(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
 
     def profile_time_segement_4_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:  
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_4/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_4_acc(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 )% profile_params.delta_t)
+        while  current_time <  time.t_4 :
+            if current_time >= 0.0:
+                vel = self._segment_4_acc(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
 
 
     def profile_time_segement_4_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_4/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_4_jerk(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 )% profile_params.delta_t)
+        while  current_time <  time.t_4 :
+            if current_time >= 0.0:
+                vel = self._segment_4_jerk(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
     
     def _segment_4_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -394,33 +437,40 @@ class Profile:
     def _segment_4_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
         x = 0 if x < 0 else x
-
+        overshoot : float = 0.0
         a_4 : float = self._segment_3_acc(time, profile_params , T)
-        v_4 : float = self._segment_3_vel(time, profile_params , T)
-        return  a_4 * x + v_4
+        vel = lambda x : a_4 * x
+        v_4 : float = self._segment_3_vel(time, profile_params , T) + vel(overshoot)
+        return  vel(x) + v_4
     ############################################################################################# Segment 5
     def profile_time_segement_5(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
             vel = self._segment_5_vel(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+        
         return profile
     
     def profile_time_segement_5_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+
             vel = self._segment_5_acc(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
         return profile
     
     def profile_time_segement_5_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
+        current_time: float = profile_params.delta_t - ( (3 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
             vel = self._segment_5_jerk(time, profile_params, current_time)
             profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
     
     def _segment_5_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -429,76 +479,101 @@ class Profile:
     
     def _segment_5_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         J, T1,T4, x = profile_params.j_max, time.t_1,time.t_4, current_time
-        a_5 : float = self._segment_4_acc(time,profile_params,T4) - (2 * J * T1)/np.pi 
-        return (2 * J * T1 * np.cos( (np.pi * x) / (2 * T1) )) / np.pi + a_5
+        overshoot : float = 0.0
+        acc = lambda x :  (2 * J * T1 * np.cos( (np.pi * x) / (2 * T1) )) / np.pi
+        a_5 : float = self._segment_4_acc(time,profile_params,T4) - acc(overshoot)
+        return acc(overshoot) + a_5 
     
     def _segment_5_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T1,T4, x = profile_params.j_max, time.t_1,time.t_4, current_time
-        a_5 : float = self._segment_4_acc(time,profile_params, T4) - (2 * J * T1)/np.pi 
-        v_5 : float = self._segment_4_vel(time,profile_params, T4)
-        return (4 * J * T1 **2 * np.sin( (np.pi * x) / (2 * T1) )) / (np.pi **2) + a_5*x +  v_5
+        overshoot : float = 0.0
+        acc = lambda x :  (2 * J * T1 * np.cos( (np.pi * x) / (2 * T1) )) / np.pi
+        a_5 : float = self._segment_4_acc(time,profile_params,T4) - acc(overshoot)
+        vel = lambda x : (4 * J * T1 **2 * np.sin( (np.pi * x) / (2 * T1) )) / (np.pi **2) + a_5*x
+        v_5 : float = self._segment_4_vel(time,profile_params, T4) - vel(overshoot)
+        return vel(x) +  v_5
     ############################################################################################# Segment 6
     def profile_time_segement_6(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_6_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (4 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_6_vel(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
         return profile
     
     def profile_time_segement_6_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_6_acc(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (4 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_6_acc(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
         return profile
     
     def profile_time_segement_6_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_6_jerk(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (4 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_6_jerk(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
         return profile
     
     def _segment_6_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        return -J
+        return -J 
     
     def _segment_6_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_6 : float = self._segment_5_acc(time, profile_params , T)
-        return -J * x + a_6
+        overshoot : float = 0.0
+        acc = lambda x :  -J * x 
+        a_6 : float = self._segment_5_acc(time,profile_params,T) - acc(overshoot)
+        return acc(x) + a_6 
     
     def _segment_6_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_6 : float = self._segment_5_acc(time, profile_params , T)
+        overshoot : float = 0.0
+        acc = lambda x :  -J * x 
+        a_6 : float = self._segment_5_acc(time,profile_params,T) - acc(overshoot)
+        vel = lambda x : - 0.5 * J * x **2.0 + a_6 * x
         v_6 : float = self._segment_5_vel(time, profile_params , T)
-        return  - 0.5 * J * x **2.0 + a_6 * x + v_6 
+        return  vel(x) + v_6 
     ############################################################################################# Segment 7
     def profile_time_segement_7(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_7_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (5 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_7_vel(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+            
         return profile
 
     def profile_time_segement_7_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_7_acc(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (5 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_7_acc(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
       
     def profile_time_segement_7_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_1/profile_params.delta_t +1 )):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_7_jerk(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (5 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_1 :
+            if current_time >= 0.0:
+                vel = self._segment_7_jerk(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
     
     def _segment_7_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -506,39 +581,53 @@ class Profile:
         return - J * np.sin(np.pi / 2 +  (np.pi * x) / (2 * T) )
     
     def _segment_7_acc(self, time : Time, profile_params : ProfileParams, current_time : float, ) -> float:
-        J, T, x = profile_params.j_max, time.t_1, current_time
-        a_7 : float = self._segment_6_acc(time, profile_params , T)
-        return  - (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi + a_7
+        J, T, x = profile_params.j_max, time.t_1, current_time 
+        overshoot : float = 0.0
+        acc = lambda x :  - (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi
+        a_7 : float = self._segment_6_acc(time, profile_params , T) - acc(overshoot)
+        return  acc(x) + a_7
     
     def _segment_7_vel(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
         J, T, x = profile_params.j_max, time.t_1, current_time
-        a_7 : float = self._segment_6_acc(time, profile_params, time.t_1)
-        v_7 : float = self._segment_6_vel(time,profile_params, time.t_1) - (4 * J * T **2)/ (np.pi **2)
-        return    (4 * J * T **2 * np.cos( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_7*x + v_7
+        overshoot : float = 0.0
+        acc = lambda x :  - (2 * J * T * np.sin( (np.pi * x) / (2 * T) )) / np.pi
+        a_7 : float = self._segment_6_acc(time, profile_params , T) - acc(overshoot)
+        vel = lambda x :  (4 * J * T **2 * np.cos( (np.pi * x) / (2 * T) )) / (np.pi **2) + a_7*x 
+        v_7 : float = self._segment_6_vel(time,profile_params, time.t_1) - vel(overshoot)
+        return  vel(x) + v_7
     
     ############################################################################################# Segment 8
     def profile_time_segement_8(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_cv/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_8_vel(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (6 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_cv :
+            if current_time >= 0.0:
+                vel = self._segment_8_vel(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
 
     def profile_time_segement_8_acc(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_cv/profile_params.delta_t + 1)):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_8_acc(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (6 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_cv:
+            if current_time >= 0.0:
+                vel = self._segment_8_acc(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
       
     def profile_time_segement_8_jerk(self, time : Time, profile_params : ProfileParams) -> np.ndarray:
         profile : np.ndarray = np.array([])
-        for t in range(int(time.t_cv/profile_params.delta_t +1 )):
-            current_time : float = t * profile_params.delta_t
-            vel = self._segment_8_jerk(time, profile_params, current_time)
-            profile = np.append(profile, vel)
+        current_time: float = profile_params.delta_t - ( (6 * time.t_1 + time.t_4  )% profile_params.delta_t)
+        while  current_time <  time.t_cv:
+            if current_time >= 0.0:
+                vel = self._segment_8_jerk(time, profile_params, current_time)
+                profile = np.append(profile, vel)
+            current_time += profile_params.delta_t
+
         return profile
     
     def _segment_8_jerk(self, time : Time,profile_params : ProfileParams, current_time : float) -> float:
@@ -568,7 +657,7 @@ def main():
                                                    j_max=0.1,
                                                    delta_t=0.01)
     # type 2
-    profile_params : ProfileParams = ProfileParams(10.0,
+    profile_params : ProfileParams = ProfileParams(100.0,
                                                    0.0,
                                                    2.0,
                                                    3,
@@ -615,8 +704,6 @@ def main():
     axs[2].plot(range(len(total_acc)), total_acc)
     axs[2].set_title('Total Acc')
 
-    # Adjust the layout so that plots do not overlap
-    plt.tight_layout()
 
     # Display the figure with the subplots
     plt.show()
